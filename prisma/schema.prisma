@@ -1,0 +1,107 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Lab {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  slug        String    @unique
+  description String    @db.Text
+  website     String?
+  logoUrl     String?
+  country     String?
+  foundedYear Int?
+  models      AIModel[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([slug])
+}
+
+model Provider {
+  id           Int               @id @default(autoincrement())
+  name         String            @unique
+  slug         String            @unique
+  description  String            @db.Text
+  website      String?
+  capabilities String[]
+  models       ProviderModel[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([slug])
+}
+
+model AIModel {
+  id              Int              @id @default(autoincrement())
+  name            String
+  slug            String           @unique
+  description     String           @db.Text
+  category        String
+  inputPrice      Float            // price per 1M tokens in USD
+  outputPrice     Float            // price per 1M tokens in USD
+  contextWindow   Int              // in tokens
+  releaseDate     DateTime?
+  capabilities    String[]
+  modalities      String[]
+  isOpenSource    Boolean          @default(false)
+  isDemo          Boolean          @default(false)
+  tag             String?
+  labId           Int
+  lab             Lab              @relation(fields: [labId], references: [id])
+  providers       ProviderModel[]
+  benchmarkScores BenchmarkScore[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([slug])
+  @@index([category])
+  @@index([labId])
+}
+
+model ProviderModel {
+  id         Int      @id @default(autoincrement())
+  providerId Int
+  modelId    Int
+  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  model      AIModel  @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  apiId      String?  // The model ID as used in the provider's API
+
+  @@unique([providerId, modelId])
+  @@index([providerId])
+  @@index([modelId])
+}
+
+model Benchmark {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  slug        String           @unique
+  description String           @db.Text
+  category    String           // reasoning, coding, math, general, multimodal
+  maxScore    Float            @default(100)
+  scores      BenchmarkScore[]
+  createdAt   DateTime         @default(now())
+
+  @@index([slug])
+}
+
+model BenchmarkScore {
+  id          Int       @id @default(autoincrement())
+  modelId     Int
+  benchmarkId Int
+  score       Float
+  isDemo      Boolean   @default(true)
+  model       AIModel   @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  benchmark   Benchmark @relation(fields: [benchmarkId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@unique([modelId, benchmarkId])
+  @@index([modelId])
+  @@index([benchmarkId])
+}
